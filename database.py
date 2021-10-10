@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from sqlalchemy import create_engine, Column, Integer
 from sqlalchemy.ext.declarative import declarative_base
@@ -24,10 +24,20 @@ class TgSubscription(Base):
 
 
 def create_tg_subscription(user_id: int, chat_id: int) -> TgSubscription:
+    subscription = get_tg_subscription(user_id=user_id, chat_id=chat_id)
+    if subscription is not None:
+        return subscription
+
     subscription = TgSubscription(user_id=user_id, chat_id=chat_id)
     session.add(subscription)
     session.commit()
     return subscription
+
+
+def get_tg_subscription(user_id: int, chat_id: int) -> Optional[TgSubscription]:
+    return session.query(TgSubscription)\
+        .where(TgSubscription.user_id == user_id and TgSubscription.chat_id == chat_id)\
+        .first()
 
 
 def get_tg_subscriptions_by_user(user_id: int) -> List[TgSubscription]:
@@ -39,10 +49,7 @@ def get_tg_subscriptions_by_chat(chat_id: int) -> List[TgSubscription]:
 
 
 def remove_tg_subscription(user_id: int, chat_id: int) -> None:
-    subscription = session.query(TgSubscription)\
-        .where(TgSubscription.user_id == user_id and TgSubscription.chat_id == chat_id)\
-        .first()
-
+    subscription = get_tg_subscription(user_id=user_id, chat_id=chat_id)
     if subscription is None:
         raise ValueError(f'Subscription with user_id={user_id} and chat_id={chat_id} does not exist.')
 
