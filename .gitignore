@@ -1,3 +1,7 @@
+### Creds ###
+config.py
+creds.json
+
 ### Database ###
 *.accdb
 *.db
