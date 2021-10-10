@@ -36,7 +36,7 @@ def create_tg_subscription(user_id: int, chat_id: int) -> TgSubscription:
 
 def get_tg_subscription(user_id: int, chat_id: int) -> Optional[TgSubscription]:
     return session.query(TgSubscription)\
-        .where(TgSubscription.user_id == user_id and TgSubscription.chat_id == chat_id)\
+        .filter((TgSubscription.user_id == user_id) & (TgSubscription.chat_id == chat_id))\
         .first()
 
 
