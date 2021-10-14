@@ -29,6 +29,7 @@ class SheetSubscription(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer)
     sheet_id = Column(String(length=150))
+    sheet_range = Column(String(length=16))
 
     def __repr__(self) -> str:
         return f'<database.SheetsSubscription id: {self.id}, user_id: {self.user_id}, sheet_id: {self.sheet_id}>'
@@ -74,20 +75,22 @@ def remove_tg_subscription(user_id: int, chat_id: int) -> None:
 # ----------  Sheets ----------
 
 
-def create_sheet_subscription(user_id: int, sheet_id: str) -> SheetSubscription:
-    subscription = get_sheet_subscription(user_id=user_id, sheet_id=sheet_id)
+def create_sheet_subscription(user_id: int, sheet_id: str, sheet_range: str) -> SheetSubscription:
+    subscription = get_sheet_subscription(user_id=user_id, sheet_id=sheet_id, sheet_range=sheet_range)
     if subscription is not None:
         return subscription
 
-    subscription = SheetSubscription(user_id=user_id, sheet_id=sheet_id)
+    subscription = SheetSubscription(user_id=user_id, sheet_id=sheet_id, sheet_range=sheet_range)
     session.add(subscription)
     session.commit()
     return subscription
 
 
-def get_sheet_subscription(user_id: int, sheet_id: str) -> Optional[SheetSubscription]:
+def get_sheet_subscription(user_id: int, sheet_id: str, sheet_range: str) -> Optional[SheetSubscription]:
     return session.query(SheetSubscription)\
-        .filter((SheetSubscription.user_id == user_id) & (SheetSubscription.sheet_id == sheet_id))\
+        .filter((SheetSubscription.user_id == user_id)
+                & (SheetSubscription.sheet_id == sheet_id)
+                & (SheetSubscription.sheet_range == sheet_range))\
         .first()
 
 
@@ -101,6 +104,10 @@ def get_sheet_subscriptions_by_sheet_id(sheet_id: str) -> List[SheetSubscription
 
 def get_unique_sheet_ids() -> List[str]:
     return list(map(lambda x: x[0], session.query(SheetSubscription.sheet_id).distinct()))
+
+
+def get_all_sheet_subscriptions() -> List[SheetSubscription]:
+    return session.query(SheetSubscription).all()
 
 
 def delete_sheet_subscription(user_id: int, sheet_id: str) -> None:
