@@ -28,7 +28,7 @@ class SheetSubscription(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer)
-    sheet_id = Column(String(length=64))
+    sheet_id = Column(String(length=150))
 
     def __repr__(self) -> str:
         return f'<database.SheetsSubscription id: {self.id}, user_id: {self.user_id}, sheet_id: {self.sheet_id}>'
@@ -99,7 +99,7 @@ def get_sheet_subscriptions_by_sheet_id(sheet_id: str) -> List[SheetSubscription
     return session.query(SheetSubscription).where(SheetSubscription.sheet_id == sheet_id).all()
 
 
-def get_unique_sheet_ids() -> List:
+def get_unique_sheet_ids() -> List[str]:
     return list(map(lambda x: x[0], session.query(SheetSubscription.sheet_id).distinct()))
 
 
