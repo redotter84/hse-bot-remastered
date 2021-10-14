@@ -28,11 +28,11 @@ class SheetSubscription(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer)
-    sheet_id = Column(String(length=150))
+    sheet_link = Column(String(length=150))
     sheet_range = Column(String(length=16))
 
     def __repr__(self) -> str:
-        return f'<database.SheetsSubscription id: {self.id}, user_id: {self.user_id}, sheet_id: {self.sheet_id}, range: {self.sheet_range}>'
+        return f'<database.SheetsSubscription id: {self.id}, user_id: {self.user_id}, sheet_link: {self.sheet_link}, range: {self.sheet_range}>'
 
 
 # ----------  TG  ----------
@@ -75,21 +75,21 @@ def remove_tg_subscription(user_id: int, chat_id: int) -> None:
 # ----------  Sheets ----------
 
 
-def create_sheet_subscription(user_id: int, sheet_id: str, sheet_range: str) -> SheetSubscription:
-    subscription = get_sheet_subscription(user_id=user_id, sheet_id=sheet_id, sheet_range=sheet_range)
+def create_sheet_subscription(user_id: int, sheet_link: str, sheet_range: str) -> SheetSubscription:
+    subscription = get_sheet_subscription(user_id=user_id, sheet_link=sheet_link, sheet_range=sheet_range)
     if subscription is not None:
         return subscription
 
-    subscription = SheetSubscription(user_id=user_id, sheet_id=sheet_id, sheet_range=sheet_range)
+    subscription = SheetSubscription(user_id=user_id, sheet_id=sheet_link, sheet_range=sheet_range)
     session.add(subscription)
     session.commit()
     return subscription
 
 
-def get_sheet_subscription(user_id: int, sheet_id: str, sheet_range: str) -> Optional[SheetSubscription]:
+def get_sheet_subscription(user_id: int, sheet_link: str, sheet_range: str) -> Optional[SheetSubscription]:
     return session.query(SheetSubscription)\
         .filter((SheetSubscription.user_id == user_id)
-                & (SheetSubscription.sheet_id == sheet_id)
+                & (SheetSubscription.sheet_link == sheet_link)
                 & (SheetSubscription.sheet_range == sheet_range))\
         .first()
 
@@ -98,22 +98,18 @@ def get_sheet_subscriptions_by_user_id(user_id: int) -> List[SheetSubscription]:
     return session.query(SheetSubscription).where(SheetSubscription.user_id == user_id).all()
 
 
-def get_sheet_subscriptions_by_sheet_id(sheet_id: str) -> List[SheetSubscription]:
-    return session.query(SheetSubscription).where(SheetSubscription.sheet_id == sheet_id).all()
-
-
-def get_unique_sheet_ids() -> List[str]:
-    return list(map(lambda x: x[0], session.query(SheetSubscription.sheet_id).distinct()))
+def get_sheet_subscriptions_by_sheet_link(sheet_link: str) -> List[SheetSubscription]:
+    return session.query(SheetSubscription).where(SheetSubscription.sheet_link == sheet_link).all()
 
 
 def get_all_sheet_subscriptions() -> List[SheetSubscription]:
     return session.query(SheetSubscription).all()
 
 
-def delete_sheet_subscription(user_id: int, sheet_id: str) -> None:
-    subscription = get_sheet_subscription(user_id=user_id, sheet_id=sheet_id)
+def delete_sheet_subscription(user_id: int, sheet_link: str, sheet_range: str) -> None:
+    subscription = get_sheet_subscription(user_id=user_id, sheet_link=sheet_link, sheet_range=sheet_range)
     if subscription is None:
-        raise ValueError(f"Sheet subscription with user_id={user_id} and sheet_id={sheet_id} does not exist.")
+        raise ValueError(f"Sheet subscription with user_id={user_id} and sheet_link={sheet_link} and sheet_range={sheet_range} does not exist.")
 
     session.delete(subscription)
     session.commit()
