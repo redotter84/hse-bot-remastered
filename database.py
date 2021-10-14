@@ -80,7 +80,7 @@ def create_sheet_subscription(user_id: int, sheet_link: str, sheet_range: str) -
     if subscription is not None:
         return subscription
 
-    subscription = SheetSubscription(user_id=user_id, sheet_id=sheet_link, sheet_range=sheet_range)
+    subscription = SheetSubscription(user_id=user_id, sheet_link=sheet_link, sheet_range=sheet_range)
     session.add(subscription)
     session.commit()
     return subscription
