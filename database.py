@@ -32,7 +32,7 @@ class SheetSubscription(Base):
     sheet_range = Column(String(length=16))
 
     def __repr__(self) -> str:
-        return f'<database.SheetsSubscription id: {self.id}, user_id: {self.user_id}, sheet_id: {self.sheet_id}>'
+        return f'<database.SheetsSubscription id: {self.id}, user_id: {self.user_id}, sheet_id: {self.sheet_id}, range: {self.sheet_range}>'
 
 
 # ----------  TG  ----------
