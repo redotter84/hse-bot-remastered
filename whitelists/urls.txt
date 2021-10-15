@@ -1,0 +1,3 @@
+zoom.us
+sheets.google.com
+wiki.cs.hse.ru
