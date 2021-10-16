@@ -4,24 +4,26 @@ import googleapiclient
 import httplib2
 import apiclient
 from oauth2client.service_account import ServiceAccountCredentials
+from database import get_all_sheet_subscriptions
 
 
-def req_sheet_for_update(links, target_ranges, time_between_requests=30, requests_count=10,
-                         troubleshoot_in_read_func=False, troubleshoot_mode=False):
+def req_sheets_for_update(subscriptions_list, time_between_requests=30, requests_count=10, troubleshoot_in_read_func=False,
+                          troubleshoot_mode=False):
     # Создаём list, содержащий начальные данные всех диапазонов по ссылкам
-    data = [[] for _ in range(len(links))]
+    data = [[] for _ in range(len(subscriptions_list))]
     if troubleshoot_mode:
         print('На вход было предоставлено следующее количество таблиц: ' + str(len(data)))
         print('Ссылки: ')
-        for i in range(len(links)):
-            print('link ' + str(i + 1) + ' ' + links[i])
+        for i in range(len(subscriptions_list)):
+            print('link ' + str(i + 1) + ' ' + subscriptions_list[i].sheet_link)
     for i in range(len(data)):
         try:
-            data[i] = read_range_from_sheet(links[i], target_ranges[i], troubleshoot_in_read_func)
+            data[i] = read_range_from_sheet(subscriptions_list[i].sheet_link, subscriptions_list[i].sheet_range, troubleshoot_in_read_func)
             if troubleshoot_mode:
                 print('Таблица №' + str(i + 1) + ' успешно подключена')
         except googleapiclient.errors.HttpError:
             print('Ошибка при работе с таблицей №' + str(i + 1) + ', проверьте верна ли сслыка')
+
     # Начинаем цикл обновления: каждые time_between_requests секунд проверяем данные каждой таблицы
     # Если они отличаются от хранимой нами версии - сообщаем об этом и перезаписываем данные
     print('Начинаю отслеживание изменений')
@@ -32,9 +34,9 @@ def req_sheet_for_update(links, target_ranges, time_between_requests=30, request
         time.sleep(time_between_requests)
         if troubleshoot_mode:
             print('Происходит запрос №' + str(req + 1) + '...')
-        for i in range(len(links)):
+        for i in range(len(subscriptions_list)):
             try:
-                new_data = read_range_from_sheet(links[i], target_ranges[i], troubleshoot_in_read_func)
+                new_data = read_range_from_sheet(subscriptions_list[i].sheet_link, subscriptions_list[i].sheet_range, troubleshoot_in_read_func)
                 # TODO Сделать так, чтобы вместо номера показывалось название таблицы
                 if new_data != data[i]:
                     print('В таблице №' + str(i + 1) + ' произошло изменение! \nСтарые данные:',
@@ -97,17 +99,22 @@ def read_range_from_sheet(link=('https://docs.google.com/spreadsheets/d/1_q'
     if troubleshoot_mode:
         print('range = ' + target_range)
     try:
-        values = service.spreadsheets().values().get(
+        req_answer = service.spreadsheets().values().get(
             spreadsheetId=spreadsheet_id,
             range=sheet_title + '!' + target_range,
             majorDimension='ROWS'
         ).execute()
-        return values['values']
+        if 'values' not in req_answer.keys():
+            req_answer['values'] = [['']]
+        return req_answer['values']
     except googleapiclient.errors.HttpError:
         raise ValueError('Неверный формат диапазона range')
 
+
 # Базовый тест:
-# links_arr = ['https://docs.google.com/spreadsheets/d/1_qMcJZEJaiXZpMbjKM0trw_aGkkulrZG7Lq7kjU8/edit#gid=403770193',
+# links_arr = ['https://docs.google.com/spreadsheets/d/1_qMPqgcJZEJaiXZpMbjKM0trw_aGkkulrZG7Lq7kjU8/edit#gid=403770193',
 #              'https://docs.google.com/spreadsheets/d/1csPjqocpnvlFp8IcoQdfGnbqT9jlS_jqjbgOFqB_sq8/edit#gid=0']
 # ranges_arr = ['Y13', 'b3:e3']
-# req_sheet_for_update(links_arr, ranges_arr, 15, 10, troubleshoot_mode=False)
+# req_sheets_for_update(links_arr, ranges_arr, 15, 10, troubleshoot_in_read_func=False, troubleshoot_mode=True)
+
+req_sheets_for_update(get_all_sheet_subscriptions(), 15, 10, troubleshoot_in_read_func=False, troubleshoot_mode=True)
