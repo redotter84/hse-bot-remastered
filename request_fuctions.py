@@ -117,4 +117,4 @@ def read_range_from_sheet(link=('https://docs.google.com/spreadsheets/d/1_q'
 # ranges_arr = ['Y13', 'b3:e3']
 # req_sheets_for_update(links_arr, ranges_arr, 15, 10, troubleshoot_in_read_func=False, troubleshoot_mode=True)
 
-req_sheets_for_update(get_all_sheet_subscriptions(), 15, 10, troubleshoot_in_read_func=False, troubleshoot_mode=True)
+req_sheets_for_update(get_all_sheet_subscriptions(), 60, 10000, troubleshoot_in_read_func=False, troubleshoot_mode=True)
