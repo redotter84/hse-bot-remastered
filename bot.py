@@ -1,18 +1,12 @@
 import asyncio
 import logging
+from aiogram.utils import executor, exceptions
 from random import randrange
 
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor, exceptions
-from config import TOKEN
-
-bot = Bot(token=TOKEN)
-dp = Dispatcher(bot)
-
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger('broadcast')
-input_channels_entities = []
+from bot_config import bot, dp, log, input_channels_entities
 
 
 @dp.message_handler(commands=['start'])
@@ -29,6 +23,11 @@ async def process_help_command(message: types.Message):
 @dp.message_handler(commands=['info'])
 async def process_info_command(message: types.Message):
     await message.reply(f"Отслеживаю {len(input_channels_entities)} чатов.")
+
+
+@dp.message_handler(commands=['subscribe'])
+async def process_help_command(message: types.Message):
+    await message.reply("Пришли мне ссылку на таблицу пожалуйста")
 
 
 async def send_message(user_id: int, text: str, disable_notification: bool = False) -> bool:
@@ -51,6 +50,8 @@ async def send_message(user_id: int, text: str, disable_notification: bool = Fal
         return await send_message(user_id, text)  # Recursive call
     except exceptions.UserDeactivated:
         log.error(f"Target [ID:{user_id}]: user is deactivated")
+    except exceptions.CantInitiateConversation:
+        log.error(f"Target [ID:{user_id}]: bot can't initiate conversation with a user")
     except exceptions.TelegramAPIError:
         log.exception(f"Target [ID:{user_id}]: failed")
     else:
@@ -61,12 +62,12 @@ async def send_message(user_id: int, text: str, disable_notification: bool = Fal
 
 @dp.message_handler(lambda message: message.chat.id != message.from_user.id)
 async def process_spam_command(message: types.Message):
-    if randrange(10) % 2 == 0:
-        await send_message(message.from_user.id, message.text)
+    # if randrange(10) % 2 == 0:
+    await send_message(message.from_user.id, message.text)
 
 
 @dp.message_handler(commands=['try'])
-async def process_spam_command(message: types.Message):
+async def process_try_command(message: types.Message):
     await send_message(message.from_user.id, 'что-то делаю')
 
 

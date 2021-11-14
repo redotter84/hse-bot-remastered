@@ -1,32 +1,34 @@
-from pprint import pprint
 import time
 import googleapiclient
 import httplib2
 import apiclient
 from oauth2client.service_account import ServiceAccountCredentials
 from database import get_all_sheet_subscriptions
+from send_message_function import send_message
 
 
-def req_sheets_for_update(subscriptions_list, time_between_requests=30, requests_count=10, troubleshoot_in_read_func=False,
+def req_sheets_for_update(time_between_requests=30, requests_count=10, troubleshoot_in_read_func=False,
                           troubleshoot_mode=False):
     # Создаём list, содержащий начальные данные всех диапазонов по ссылкам
-    data = [[] for _ in range(len(subscriptions_list))]
+    subscriptions_list = get_all_sheet_subscriptions()
+    data = dict()
     if troubleshoot_mode:
-        print('На вход было предоставлено следующее количество таблиц: ' + str(len(data)))
+        print('На вход было предоставлено следующее количество таблиц: ' + str(len(subscriptions_list)))
         print('Ссылки: ')
         for i in range(len(subscriptions_list)):
-            print('link ' + str(i + 1) + ' ' + subscriptions_list[i].sheet_link)
-    for i in range(len(data)):
+            print('link id: ' + str(subscriptions_list[i].id) + ' ' + subscriptions_list[i].sheet_link)
+    for i in range(len(subscriptions_list)):
         try:
-            data[i] = read_range_from_sheet(subscriptions_list[i].sheet_link, subscriptions_list[i].sheet_range, troubleshoot_in_read_func)
+            data[subscriptions_list[i].id] = read_range_from_sheet(subscriptions_list[i].sheet_link, subscriptions_list[i].sheet_range, troubleshoot_in_read_func)
             if troubleshoot_mode:
-                print('Таблица №' + str(i + 1) + ' успешно подключена')
+                print('Таблица №' + str(subscriptions_list[i].id) + ' успешно подключена')
         except googleapiclient.errors.HttpError:
-            print('Ошибка при работе с таблицей №' + str(i + 1) + ', проверьте верна ли сслыка')
+            print('Ошибка при работе с подпиской ' + str(subscriptions_list[i].id) + ', проверьте верна ли сслыка')
+        except httplib2.error.ServerNotFoundError:
+            print('Что-то пошло не так')
 
     # Начинаем цикл обновления: каждые time_between_requests секунд проверяем данные каждой таблицы
     # Если они отличаются от хранимой нами версии - сообщаем об этом и перезаписываем данные
-    print('Начинаю отслеживание изменений')
     if troubleshoot_mode:
         print('Время между обновлениями: ' + str(time_between_requests) + ' сек')
         print('Общее количество запросов: ' + str(requests_count))
@@ -34,22 +36,37 @@ def req_sheets_for_update(subscriptions_list, time_between_requests=30, requests
         time.sleep(time_between_requests)
         if troubleshoot_mode:
             print('Происходит запрос №' + str(req + 1) + '...')
-        for i in range(len(subscriptions_list)):
+
+        new_new_data = dict()
+        subscriptions_list = get_all_sheet_subscriptions()
+        for el in subscriptions_list:
+            if el.id in data:
+                new_new_data[el.id] = data[el.id]
+            else:
+                try:
+                    new_new_data[el.id] = read_range_from_sheet(el.sheet_link, el.sheet_range)
+                except googleapiclient.errors.HttpError:
+                    print(
+                        'Ошибка при работе с подпиской ' + str(el.id) + ', проверьте верна ли сслыка')
+                except httplib2.error.ServerNotFoundError:
+                    print('Что-то пошло не так')
+        data = new_new_data.copy()
+
+        for el in subscriptions_list:
             try:
-                new_data = read_range_from_sheet(subscriptions_list[i].sheet_link, subscriptions_list[i].sheet_range, troubleshoot_in_read_func)
+                new_data = read_range_from_sheet(el.sheet_link, el.sheet_range, troubleshoot_in_read_func)
                 # TODO Сделать так, чтобы вместо номера показывалось название таблицы
-                if new_data != data[i]:
-                    print('В таблице №' + str(i + 1) + ' произошло изменение! \nСтарые данные:',
+                if new_data != data[el.id]:
+                    send_message(el.user_id, 'В таблице по подписке № ' + str(el.id) + ' произошло изменение! \nСтарые данные:',
                           data[i], '\nНовые данные:', new_data)
                     data[i] = new_data
                 elif troubleshoot_mode:
-                    print('В таблице №' + str(i + 1) + ' изменений нет')
+                    print('В таблице №' + str(el.id) + ' изменений нет')
             except googleapiclient.errors.HttpError:
                 if troubleshoot_mode:
-                    print('Ошибка при работе с таблицей №' + str(i + 1) + ', проверьте верна ли сслыка')
+                    print('Ошибка при работе с таблицей №' + str(el.id) + ', проверьте верна ли сслыка')
                 else:
                     pass
-    print('Отслеживание изменений завершено')
 
 
 def read_range_from_sheet(link=('https://docs.google.com/spreadsheets/d/1_q'
@@ -79,7 +96,7 @@ def read_range_from_sheet(link=('https://docs.google.com/spreadsheets/d/1_q'
         ['https://www.googleapis.com/auth/spreadsheets',
          'https://www.googleapis.com/auth/drive'])
     http_auth = credentials.authorize(httplib2.Http())
-    service = apiclient.discovery.build('sheets', 'v4', http=http_auth)
+    service = apiclient.discovery.build('sheets', 'v4', http=http_auth, cache_discovery=False)
 
     # Находим название листа таблицы
     sheet_title = None
@@ -117,4 +134,4 @@ def read_range_from_sheet(link=('https://docs.google.com/spreadsheets/d/1_q'
 # ranges_arr = ['Y13', 'b3:e3']
 # req_sheets_for_update(links_arr, ranges_arr, 15, 10, troubleshoot_in_read_func=False, troubleshoot_mode=True)
 
-req_sheets_for_update(get_all_sheet_subscriptions(), 60, 10000, troubleshoot_in_read_func=False, troubleshoot_mode=True)
+# req_sheets_for_update(20, 10, troubleshoot_in_read_func=False, troubleshoot_mode=True)
