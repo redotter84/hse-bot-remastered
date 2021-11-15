@@ -6,6 +6,12 @@ from oauth2client.service_account import ServiceAccountCredentials
 from database import get_all_sheet_subscriptions
 from send_message_function import send_message
 
+flag_changed = False
+userr_id = None
+sub_id = None
+old_data = None
+neww_data = None
+
 
 def req_sheets_for_update(time_between_requests=30, requests_count=10, troubleshoot_in_read_func=False,
                           troubleshoot_mode=False):
@@ -57,9 +63,20 @@ def req_sheets_for_update(time_between_requests=30, requests_count=10, troublesh
                 new_data = read_range_from_sheet(el.sheet_link, el.sheet_range, troubleshoot_in_read_func)
                 # TODO Сделать так, чтобы вместо номера показывалось название таблицы
                 if new_data != data[el.id]:
-                    send_message(el.user_id, 'В таблице по подписке № ' + str(el.id) + ' произошло изменение! \nСтарые данные:',
-                          data[i], '\nНовые данные:', new_data)
-                    data[i] = new_data
+                    global flag_changed
+                    flag_changed = True
+                    global userr_id
+                    userr_id = el.user_id
+                    global sub_id
+                    sub_id = str(el.id)
+                    global old_data
+                    old_data = data[el.id]
+                    global neww_data
+                    neww_data = new_data
+                    # await send_message(el.user_id, f'В таблице по подписке № {str(el.id)} '
+                    #                          f'произошло изменение!\nСтарые данные:'
+                    #                          f'{data[i]}, \nНовые данные: {new_data}')
+                    data[el.id] = new_data
                 elif troubleshoot_mode:
                     print('В таблице №' + str(el.id) + ' изменений нет')
             except googleapiclient.errors.HttpError:
