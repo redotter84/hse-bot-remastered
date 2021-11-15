@@ -1,75 +1,131 @@
+import database
+import request_functions
+from send_message_function import send_message
 import asyncio
 import logging
-from aiogram.utils import executor, exceptions
-from random import randrange
-
+import re
+import message_classifier
+from bot_config import dp
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor, exceptions
-from bot_config import bot, dp, log, input_channels_entities
+from config import TOKEN
 
 
 @dp.message_handler(commands=['start'])
 async def process_start_command(message: types.Message):
-    await message.reply(f"ID чата: {message.chat.id}, MAIN_ID: {message.from_user.id}")
-    await message.reply("Привет!\nНапиши мне что-нибудь!")
+    await message.reply("Привет!\nЭто демоверсия, чтобы посмотреть доступные команды отправь /help ")
+    # while True:
+    #     if request_functions.flag_changed:
+    #         await send_message(request_functions.userr_id, f'В таблице по подписке № {request_functions.sub_id} '
+    #                            f'произошло изменение!\nСтарые данные:'
+    #                            f'{request_functions.old_data}, \nНовые данные: {request_functions.neww_data}')
+    #         request_functions.flag_changed = False
 
 
 @dp.message_handler(commands=['help'])
 async def process_help_command(message: types.Message):
-    await message.reply("Тут могло бы быть что-то полезное, но пока что этого нет.")
+    await message.reply("В этом боте на данный момент ты можешь выполнить следующие команды:\n"
+                        "/get_id - получить ID чата и пользователя\n"
+                        "/sub CHAT_ID - оформить подписку на чат с указанным ID\n"
+                        "/cancel_sub CHAT_ID - отменить подписку на чат с указанным ID\n"
+                        "/info - показать количество отслеживаемых чатов")
 
 
 @dp.message_handler(commands=['info'])
 async def process_info_command(message: types.Message):
-    await message.reply(f"Отслеживаю {len(input_channels_entities)} чатов.")
+    await message.reply(f"Всего отслеживаемых чатов: "
+                        f"{len(database.get_tg_subscriptions_by_user(message.from_user.id))}")
 
 
-@dp.message_handler(commands=['subscribe'])
-async def process_help_command(message: types.Message):
-    await message.reply("Пришли мне ссылку на таблицу пожалуйста")
+# ----------------подписка на чат---------------------------
+
+@dp.message_handler(commands=['get_id'])
+async def process_get_id_command(message: types.Message):
+    await message.reply(f"ID чата: {message.chat.id}, USER_ID: {message.from_user.id}")
 
 
-async def send_message(user_id: int, text: str, disable_notification: bool = False) -> bool:
-    """
-    Safe messages sender
-    :param user_id:
-    :param text:
-    :param disable_notification:
-    :return:
-    """
+@dp.message_handler(commands=['sub'])
+async def process_subscribe_command(message: types.Message):
+    await message.reply(f"Для того, чтобы подписаться на обновления беседы, пригласите в нее бота, "
+                        f"если он еще в ней не состоит. Далее сюда нужно будет прислать ID чата, "
+                        f"который вы хотите отслеживать. "
+                        f"Узнать его можно написав в нужной беседе команду /get_id ;)")
+    input_id = re.split(' ', message.text, maxsplit=3)
     try:
-        await bot.send_message(user_id, text, disable_notification=disable_notification)
-    except exceptions.BotBlocked:
-        log.error(f"Target [ID:{user_id}]: blocked by user")
-    except exceptions.ChatNotFound:
-        log.error(f"Target [ID:{user_id}]: invalid user ID")
-    except exceptions.RetryAfter as e:
-        log.error(f"Target [ID:{user_id}]: Flood limit is exceeded. Sleep {e.timeout} seconds.")
-        await asyncio.sleep(e.timeout)
-        return await send_message(user_id, text)  # Recursive call
-    except exceptions.UserDeactivated:
-        log.error(f"Target [ID:{user_id}]: user is deactivated")
-    except exceptions.CantInitiateConversation:
-        log.error(f"Target [ID:{user_id}]: bot can't initiate conversation with a user")
-    except exceptions.TelegramAPIError:
-        log.exception(f"Target [ID:{user_id}]: failed")
-    else:
-        log.info(f"Target [ID:{user_id}]: success")
-        return True
-    return False
+        input_id = int(input_id[1])
+    except ValueError:
+        return await message.reply(f"Вы неверно ввели ID. Попробуйте еще раз :)")
+
+    # check if suitable
+    database.create_tg_subscription(message.from_user.id, input_id)
+    await message.reply(f"Вы успешно подписались на чат со следующим ID: {input_id}")
 
 
-@dp.message_handler(lambda message: message.chat.id != message.from_user.id)
-async def process_spam_command(message: types.Message):
-    # if randrange(10) % 2 == 0:
-    await send_message(message.from_user.id, message.text)
+@dp.message_handler(commands=['cancel_sub'])
+async def process_cancel_subscription_command(message: types.Message):
+    await message.reply(f"Для того, чтобы отписаться от обновлений чата, пришлите сюда ID чата "
+                        f"за которым вы не хотите больше следить. "
+                        f"Узнать его можно написав в нужной беседе команду /get_id ;)")
+    input_id = re.split(' ', message.text, maxsplit=3)
+    try:
+        input_id = int(input_id[1])
+    except ValueError:
+        return await message.reply(f"Вы неверно ввели ID. Попробуйте еще раз :)")
+
+    # check if suitable
+    database.remove_tg_subscription(message.from_user.id, input_id)
+    await message.reply(f"Вы успешно отписались от чата со следующим ID: {input_id}")
+
+
+@dp.message_handler(lambda message: len(database.get_tg_subscriptions_by_chat(message.chat.id)))
+async def process_forward_command(message: types.Message):
+    subscriptions = database.get_tg_subscriptions_by_chat(message.chat.id)
+    print(subscriptions)
+    if message_classifier.is_important(message.text):
+        for user in subscriptions:
+            await send_message(user.user_id, message.text)
+
+# ------------------подписка на таблицы-------------------
+
+
+@dp.message_handler(commands=['sub_sheet'])
+async def process_subscription_sheet_command(message: types.Message):
+
+    input_str = re.split(' ', message.text, maxsplit=3)
+    try:
+        input_url = input_str[1]
+        input_range = input_str[2]
+    except ValueError:
+        return await message.reply(f"Вы неверно ввели URL или ячейку. Попробуйте еще раз :)")
+
+    # check if suitable
+    database.create_sheet_subscription(message.from_user.id, input_url, input_range)
+
+    await message.reply(f"Вы успешно подписались на обновления таблицы со следующей ячекой: {input_range}")
+
+
+@dp.message_handler(commands=['unsub_sheet'])
+async def process_subscription_sheet_command(message: types.Message):
+
+    input_str = re.split(' ', message.text, maxsplit=3)
+    try:
+        input_url = input_str[1]
+        input_range = input_str[2]
+    except ValueError:
+        return await message.reply(f"Вы неверно ввели URL или ячейку. Попробуйте еще раз :)")
+
+    # check if suitable
+    database.delete_sheet_subscription(message.from_user.id, input_url, input_range)
+    await message.reply(f"Вы успешно подписались на обновления таблицы со следующей ячекой: {input_range}")
 
 
 @dp.message_handler(commands=['try'])
-async def process_try_command(message: types.Message):
-    await send_message(message.from_user.id, 'что-то делаю')
+async def process_spam_command(message: types.Message):
+    await send_message(message.from_user.id, 'for testing')
 
 
 if __name__ == '__main__':
+    #request_functions.req_sheets_for_update(time_between_requests=5, requests_count=10, troubleshoot_in_read_func=False,
+    #                      troubleshoot_mode=False)
     executor.start_polling(dp)
