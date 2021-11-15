@@ -14,7 +14,7 @@ from config import TOKEN
 
 @dp.message_handler(commands=['start'])
 async def process_start_command(message: types.Message):
-    await message.reply("Привет!\nЭто демоверсия, чтобы посмотреть доступные команды отправь /help ")
+    await message.reply("Привет!\nЧтобы посмотреть доступные команды - отправь /help :) ")
     # while True:
     #     if request_functions.flag_changed:
     #         await send_message(request_functions.userr_id, f'В таблице по подписке № {request_functions.sub_id} '
@@ -29,28 +29,33 @@ async def process_help_command(message: types.Message):
                         "/get_id - получить ID чата и пользователя\n"
                         "/sub CHAT_ID - оформить подписку на чат с указанным ID\n"
                         "/cancel_sub CHAT_ID - отменить подписку на чат с указанным ID\n"
-                        "/info - показать количество отслеживаемых чатов")
+                        "/info - показать количество отслеживаемых чатов\n"
+                        "/sub_sheet URL RANGE - оформить подписку на ячейки таблицы по ссылке\n"
+                        "/unsub_sheet URL RANGE - отменить подписку на ячейки таблицы по ссылке")
 
 
 @dp.message_handler(commands=['info'])
 async def process_info_command(message: types.Message):
     await message.reply(f"Всего отслеживаемых чатов: "
-                        f"{len(database.get_tg_subscriptions_by_user(message.from_user.id))}")
+                        f"{len(database.get_tg_subscriptions_by_user(message.from_user.id))}\n"
+                        f"Всего отслеживаемых таблиц: "
+                        f"{len(database.get_sheet_subscriptions_by_user_id(message.from_user.id))}")
 
 
 # ----------------подписка на чат---------------------------
 
 @dp.message_handler(commands=['get_id'])
 async def process_get_id_command(message: types.Message):
-    await message.reply(f"ID чата: {message.chat.id}, USER_ID: {message.from_user.id}")
+    await message.reply(f"ID данного чата: {message.chat.id}\n"
+                        f"Пользовательский ID: {message.from_user.id}")
 
 
 @dp.message_handler(commands=['sub'])
 async def process_subscribe_command(message: types.Message):
     await message.reply(f"Для того, чтобы подписаться на обновления беседы, пригласите в нее бота, "
-                        f"если он еще в ней не состоит. Далее сюда нужно будет прислать ID чата, "
-                        f"который вы хотите отслеживать. "
-                        f"Узнать его можно написав в нужной беседе команду /get_id ;)")
+                        f"если он еще в ней не состоит.\n"
+                        f"Узнать ID чата можно написав в нужной беседе команду /get_id ;)\n"
+                        f"Или воспользуйтесь командой /help, чтобы увидеть все доступные команды.")
     input_id = re.split(' ', message.text, maxsplit=3)
     try:
         input_id = int(input_id[1])
@@ -64,9 +69,8 @@ async def process_subscribe_command(message: types.Message):
 
 @dp.message_handler(commands=['cancel_sub'])
 async def process_cancel_subscription_command(message: types.Message):
-    await message.reply(f"Для того, чтобы отписаться от обновлений чата, пришлите сюда ID чата "
-                        f"за которым вы не хотите больше следить. "
-                        f"Узнать его можно написав в нужной беседе команду /get_id ;)")
+    await message.reply(f"Узнать ID чата можно написав в нужной беседе команду /get_id ;)\n"
+                        f"Или воспользуйтесь командой /help, чтобы увидеть все доступные команды.")
     input_id = re.split(' ', message.text, maxsplit=3)
     try:
         input_id = int(input_id[1])
