@@ -1,5 +1,5 @@
 import database
-import request_functions
+import request_fuctions
 from send_message_function import send_message
 import asyncio
 import logging

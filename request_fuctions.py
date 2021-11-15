@@ -2,6 +2,7 @@ import time
 import googleapiclient
 import httplib2
 import apiclient
+import asyncio
 from oauth2client.service_account import ServiceAccountCredentials
 from database import get_all_sheet_subscriptions
 from send_message_function import send_message
@@ -13,7 +14,7 @@ old_data = None
 neww_data = None
 
 
-def req_sheets_for_update(time_between_requests=30, requests_count=10, troubleshoot_in_read_func=False,
+async def req_sheets_for_update(time_between_requests=30, requests_count=10, troubleshoot_in_read_func=False,
                           troubleshoot_mode=False):
     # Создаём list, содержащий начальные данные всех диапазонов по ссылкам
     subscriptions_list = get_all_sheet_subscriptions()
@@ -25,7 +26,7 @@ def req_sheets_for_update(time_between_requests=30, requests_count=10, troublesh
             print('link id: ' + str(subscriptions_list[i].id) + ' ' + subscriptions_list[i].sheet_link)
     for i in range(len(subscriptions_list)):
         try:
-            data[subscriptions_list[i].id] = read_range_from_sheet(subscriptions_list[i].sheet_link, subscriptions_list[i].sheet_range, troubleshoot_in_read_func)
+            data[subscriptions_list[i].id] = await read_range_from_sheet(subscriptions_list[i].sheet_link, subscriptions_list[i].sheet_range, troubleshoot_in_read_func)
             if troubleshoot_mode:
                 print('Таблица №' + str(subscriptions_list[i].id) + ' успешно подключена')
         except googleapiclient.errors.HttpError:
@@ -50,7 +51,7 @@ def req_sheets_for_update(time_between_requests=30, requests_count=10, troublesh
                 new_new_data[el.id] = data[el.id]
             else:
                 try:
-                    new_new_data[el.id] = read_range_from_sheet(el.sheet_link, el.sheet_range)
+                    new_new_data[el.id] = await read_range_from_sheet(el.sheet_link, el.sheet_range)
                 except googleapiclient.errors.HttpError:
                     print(
                         'Ошибка при работе с подпиской ' + str(el.id) + ', проверьте верна ли сслыка')
@@ -60,7 +61,7 @@ def req_sheets_for_update(time_between_requests=30, requests_count=10, troublesh
 
         for el in subscriptions_list:
             try:
-                new_data = read_range_from_sheet(el.sheet_link, el.sheet_range, troubleshoot_in_read_func)
+                new_data = await read_range_from_sheet(el.sheet_link, el.sheet_range, troubleshoot_in_read_func)
                 # TODO Сделать так, чтобы вместо номера показывалось название таблицы
                 if new_data != data[el.id]:
                     global flag_changed
@@ -73,9 +74,9 @@ def req_sheets_for_update(time_between_requests=30, requests_count=10, troublesh
                     old_data = data[el.id]
                     global neww_data
                     neww_data = new_data
-                    # await send_message(el.user_id, f'В таблице по подписке № {str(el.id)} '
-                    #                          f'произошло изменение!\nСтарые данные:'
-                    #                          f'{data[i]}, \nНовые данные: {new_data}')
+                    await send_message(el.user_id, f'В таблице по подписке № {str(el.id)} '
+                                                   f'произошло изменение!\nСтарые данные:'
+                                                   f'{data[el.id]}, \nНовые данные: {new_data}')
                     data[el.id] = new_data
                 elif troubleshoot_mode:
                     print('В таблице №' + str(el.id) + ' изменений нет')
@@ -86,7 +87,7 @@ def req_sheets_for_update(time_between_requests=30, requests_count=10, troublesh
                     pass
 
 
-def read_range_from_sheet(link=('https://docs.google.com/spreadsheets/d/1_q'
+async def read_range_from_sheet(link=('https://docs.google.com/spreadsheets/d/1_q'
                                 'MPqgcJZEJaiXZpMbjKM0trw_aGkkulrZG7Lq7kjU8/edit#gid=641725925'),
                           target_range='B10', troubleshoot_mode=False):
     # Парсим ссылку на таблицу
@@ -144,6 +145,9 @@ def read_range_from_sheet(link=('https://docs.google.com/spreadsheets/d/1_q'
     except googleapiclient.errors.HttpError:
         raise ValueError('Неверный формат диапазона range')
 
+
+if __name__ == "__main__":
+    asyncio.run(req_sheets_for_update(requests_count=1000, troubleshoot_in_read_func=True, troubleshoot_mode=True))
 
 # Базовый тест:
 # links_arr = ['https://docs.google.com/spreadsheets/d/1_qMPqgcJZEJaiXZpMbjKM0trw_aGkkulrZG7Lq7kjU8/edit#gid=403770193',
