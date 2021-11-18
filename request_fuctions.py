@@ -7,12 +7,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 from database import get_all_sheet_subscriptions
 from send_message_function import send_message
 
-flag_changed = False
-userr_id = None
-sub_id = None
-old_data = None
-neww_data = None
-
 
 async def req_sheets_for_update(time_between_requests=30, requests_count=10, troubleshoot_in_read_func=False,
                           troubleshoot_mode=False):
@@ -26,7 +20,9 @@ async def req_sheets_for_update(time_between_requests=30, requests_count=10, tro
             print('link id: ' + str(subscriptions_list[i].id) + ' ' + subscriptions_list[i].sheet_link)
     for i in range(len(subscriptions_list)):
         try:
-            data[subscriptions_list[i].id] = await read_range_from_sheet(subscriptions_list[i].sheet_link, subscriptions_list[i].sheet_range, troubleshoot_in_read_func)
+            data[subscriptions_list[i].id], _ = await read_range_and_title_from_sheet(subscriptions_list[i].sheet_link,
+                                                                                      subscriptions_list[i].sheet_range,
+                                                                                      troubleshoot_in_read_func)
             if troubleshoot_mode:
                 print('Таблица №' + str(subscriptions_list[i].id) + ' успешно подключена')
         except googleapiclient.errors.HttpError:
@@ -51,7 +47,8 @@ async def req_sheets_for_update(time_between_requests=30, requests_count=10, tro
                 new_new_data[el.id] = data[el.id]
             else:
                 try:
-                    new_new_data[el.id] = await read_range_from_sheet(el.sheet_link, el.sheet_range)
+                    new_new_data[el.id], sheet_title = await read_range_and_title_from_sheet(el.sheet_link,
+                                                                                             el.sheet_range)
                 except googleapiclient.errors.HttpError:
                     print(
                         'Ошибка при работе с подпиской ' + str(el.id) + ', проверьте верна ли сслыка')
@@ -61,22 +58,12 @@ async def req_sheets_for_update(time_between_requests=30, requests_count=10, tro
 
         for el in subscriptions_list:
             try:
-                new_data = await read_range_from_sheet(el.sheet_link, el.sheet_range, troubleshoot_in_read_func)
-                # TODO Сделать так, чтобы вместо номера показывалось название таблицы
+                new_data, sheet_title = await read_range_and_title_from_sheet(el.sheet_link, el.sheet_range,
+                                                                              troubleshoot_in_read_func)
                 if new_data != data[el.id]:
-                    global flag_changed
-                    flag_changed = True
-                    global userr_id
-                    userr_id = el.user_id
-                    global sub_id
-                    sub_id = str(el.id)
-                    global old_data
-                    old_data = data[el.id]
-                    global neww_data
-                    neww_data = new_data
-                    await send_message(el.user_id, f'В таблице по подписке № {str(el.id)} '
-                                                   f'произошло изменение!\nСтарые данные:'
-                                                   f'{data[el.id]}, \nНовые данные: {new_data}')
+                    await send_message(el.user_id, f'В таблице "{str(sheet_title)}" по подписке № {str(el.id)} '
+                                       f'произошло изменение!\nСтарые данные: '
+                                       f'{data[el.id]}, \nНовые данные: {new_data}')
                     data[el.id] = new_data
                 elif troubleshoot_mode:
                     print('В таблице №' + str(el.id) + ' изменений нет')
@@ -87,14 +74,14 @@ async def req_sheets_for_update(time_between_requests=30, requests_count=10, tro
                     pass
 
 
-async def read_range_from_sheet(link=('https://docs.google.com/spreadsheets/d/1_q'
-                                'MPqgcJZEJaiXZpMbjKM0trw_aGkkulrZG7Lq7kjU8/edit#gid=641725925'),
-                          target_range='B10', troubleshoot_mode=False):
+async def read_range_and_title_from_sheet(link, target_range, troubleshoot_mode=False):
     # Парсим ссылку на таблицу
     list_of_link = link.split('/')
     if len(list_of_link) != 7:
         raise ValueError('Ссылка не соответсвует формату')
     spreadsheet_id = list_of_link[5]
+    if list_of_link[6] == 'edit':
+        list_of_link[6] = 'edit#gid=0'
     sheet_id = list_of_link[6].split('=')[1]
     if troubleshoot_mode:
         print('link = ' + link, 'spreadsheet_id = ' + spreadsheet_id, 'sheet_id = ' + sheet_id, sep='\n')
@@ -117,7 +104,7 @@ async def read_range_from_sheet(link=('https://docs.google.com/spreadsheets/d/1_
     service = apiclient.discovery.build('sheets', 'v4', http=http_auth, cache_discovery=False)
 
     # Находим название листа таблицы
-    sheet_title = None
+    sheet_page = None
     sheet_metadata = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
     if troubleshoot_mode:
         print('Список id листов в таблице:')
@@ -125,9 +112,12 @@ async def read_range_from_sheet(link=('https://docs.google.com/spreadsheets/d/1_
         if troubleshoot_mode:
             print(page['properties']['sheetId'])
         if page['properties']['sheetId'] == int(sheet_id):
-            sheet_title = page['properties']['title']
-    if sheet_title is None:
+            page_title = page['properties']['title']
+    if page_title is None:
         raise ValueError('В таблице не найден лист с таким id')
+
+    # Находим название самой таблицы
+    sheet_title = sheet_metadata['properties']['title']
 
     # Читаем и печатаем данные из заданного диапазона
     target_range = target_range.strip().upper()
@@ -136,12 +126,12 @@ async def read_range_from_sheet(link=('https://docs.google.com/spreadsheets/d/1_
     try:
         req_answer = service.spreadsheets().values().get(
             spreadsheetId=spreadsheet_id,
-            range=sheet_title + '!' + target_range,
+            range=page_title + '!' + target_range,
             majorDimension='ROWS'
         ).execute()
         if 'values' not in req_answer.keys():
             req_answer['values'] = [['']]
-        return req_answer['values']
+        return req_answer['values'], sheet_title
     except googleapiclient.errors.HttpError:
         raise ValueError('Неверный формат диапазона range')
 
@@ -155,4 +145,4 @@ if __name__ == "__main__":
 # ranges_arr = ['Y13', 'b3:e3']
 # req_sheets_for_update(links_arr, ranges_arr, 15, 10, troubleshoot_in_read_func=False, troubleshoot_mode=True)
 
-# req_sheets_for_update(20, 10, troubleshoot_in_read_func=False, troubleshoot_mode=True)
+#req_sheets_for_update(20, 10, troubleshoot_in_read_func=False, troubleshoot_mode=True)
