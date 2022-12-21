@@ -42,12 +42,16 @@ async def process_info_command(message: types.Message):
                         f"{len(database.get_sheet_subscriptions_by_user_id(message.from_user.id))}")
 
 
-async def build_menu(message: types.Message, subscription, add_cmd, remove_cmd):
+async def build_menu(message: types.Message, subscription, suffix: str):
     buttons = []
     if not subscription:
-        buttons.append(('🔔 Subscribe', add_cmd))
+        buttons.append(('🔔 Subscribe', f'add_{suffix}'))
     else:
-        buttons.append(('❌ Unsubscribe', remove_cmd))
+        buttons.append(('❌ Unsubscribe', f'remove_{suffix}'))
+        if not subscription.muted:
+            buttons.append(('🔇 Mute', f'mute_{suffix}'))
+        else:
+            buttons.append(('🔊 Unmute', f'unmute_{suffix}'))
     keyboard_buttons = [InlineKeyboardButton(name, callback_data=data) for name, data in buttons]
     markup = InlineKeyboardMarkup().add(*keyboard_buttons)
     return await message.reply(f'Что вы хотите сделать с этой подпиской?', reply_markup=markup)
@@ -62,20 +66,37 @@ async def process_get_id_command(message: types.Message):
                         f"ID пользователя: {message.from_user.id}")
 
 
+async def get_chat_data(state) -> str:
+    data = await state.get_data()
+    return data['chat_id']
+
+
 @dp.callback_query_handler(text='add_chat')
 async def process_add_chat(call, state):
-    data = await state.get_data()
-    chat_id = data['chat_id']
+    chat_id = await get_chat_data(state)
     database.create_tg_subscription(call.from_user.id, chat_id)
     await call.message.edit_text(f"Вы успешно подписались на чат {chat_id}")
 
 
 @dp.callback_query_handler(text='remove_chat')
 async def process_remove_chat(call, state):
-    data = await state.get_data()
-    chat_id = data['chat_id']
+    chat_id = await get_chat_data(state)
     database.remove_tg_subscription(call.from_user.id, chat_id)
     await call.message.edit_text(f"Вы успешно отписались от чата {chat_id}")
+
+
+@dp.callback_query_handler(text='mute_chat')
+async def process_mute_chat(call, state):
+    chat_id = await get_chat_data(state)
+    database.toggle_mute_for_tg_subscription(call.from_user.id, chat_id)
+    await call.message.edit_text(f"Включен тихий режим для чата {chat_id}")
+
+
+@dp.callback_query_handler(text='unmute_chat')
+async def process_unmute_chat(call, state):
+    chat_id = await get_chat_data(state)
+    database.toggle_mute_for_tg_subscription(call.from_user.id, chat_id)
+    await call.message.edit_text(f"Выключен тихий режим для чата {chat_id}")
 
 
 @dp.message_handler(commands=['chat'])
@@ -92,28 +113,43 @@ async def process_chat_command(message: types.Message, state):
 
     buttons = []
     subscription = database.get_tg_subscription(user_id=message.from_user.id, chat_id=chat_id)
-    return await build_menu(message, subscription, 'add_chat', 'remove_chat')
+    return await build_menu(message, subscription, 'chat')
 
 
 # ------------------подписка на таблицы-------------------
 
 
+async def get_sheet_data(state):
+    data = await state.get_data()
+    return data['sheet_link'], data['sheet_range']
+
+
 @dp.callback_query_handler(text_contains='add_sheet')
 async def process_add_sheet(call, state):
-    data = await state.get_data()
-    sheet_link = data['sheet_link']
-    sheet_range = data['sheet_range']
+    sheet_link, sheet_range = await get_sheet_data(state)
     database.create_sheet_subscription(call.from_user.id, sheet_link, sheet_range)
     await call.message.edit_text(f"Вы успешно подписались на обновления ячеек {sheet_range} таблицы {sheet_link}")
 
 
 @dp.callback_query_handler(text_contains='remove_sheet')
 async def process_remove_sheet(call, state):
-    data = await state.get_data()
-    sheet_link = data['sheet_link']
-    sheet_range = data['sheet_range']
+    sheet_link, sheet_range = await get_sheet_data(state)
     database.delete_sheet_subscription(call.from_user.id, sheet_link, sheet_range)
     await call.message.edit_text(f"Вы успешно отписались от обновления ячеек {sheet_range} таблицы {sheet_link}")
+
+
+@dp.callback_query_handler(text='mute_sheet')
+async def process_mute_sheet(call, state):
+    sheet_link, sheet_range = await get_sheet_data(state)
+    database.toggle_mute_for_sheet_subscription(call.from_user.id, sheet_link, sheet_range)
+    await call.message.edit_text(f"Включен тихий режим для чата ячеек {sheet_range} таблицы {sheet_link}")
+
+
+@dp.callback_query_handler(text='unmute_sheet')
+async def process_unmute_sheet(call, state):
+    sheet_link, sheet_range = await get_sheet_data(state)
+    database.toggle_mute_for_sheet_subscription(call.from_user.id, sheet_link, sheet_range)
+    await call.message.edit_text(f"Выключен тихий режим для чата ячеек {sheet_range} таблицы {sheet_link}")
 
 
 @dp.message_handler(commands=['sheet'])
@@ -127,7 +163,7 @@ async def process_sheet_command(message: types.Message, state):
         return await message.reply(f"Вы неверно ввели URL или ячейку. Попробуйте еще раз :)")
 
     subscription = database.get_sheet_subscription(user_id=message.from_user.id, sheet_link=sheet_link, sheet_range=sheet_range)
-    return await build_menu(message, subscription, 'add_sheet', 'remove_sheet')
+    return await build_menu(message, subscription, 'sheet')
 
 
 # --------------------------------------------------------
