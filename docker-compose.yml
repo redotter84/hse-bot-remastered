@@ -1,0 +1,7 @@
+version: "3.9"
+services:
+  oncall:
+    build: .
+    container_name: hse-bot
+    environment:
+      - TG_BOT_TOKEN=${TG_BOT_TOKEN}
