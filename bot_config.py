@@ -8,7 +8,9 @@ from aiogram.dispatcher import Dispatcher
 token_var = 'TG_BOT_TOKEN'
 TOKEN = os.environ.get(token_var)
 if TOKEN is None:
-    print(f'You need to specify {token_var}')
+    print('\033[31;1m', end='')
+    print(f'You need to specify {token_var} environment variable')
+    print('\033[0m', end='')
     exit(1)
 
 bot = Bot(token=TOKEN)

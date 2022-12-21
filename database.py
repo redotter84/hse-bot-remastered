@@ -123,11 +123,7 @@ def migrate():
     Base.metadata.create_all(engine)
 
 
-# Base.metadata.create_all(engine)
-
-# migrate()
-# create_sheet_subscription(3, 'https://docs.google.com/spreadsheets/d/1csPjqocpnvlFp8IcoQdfGnbqT9jlS_jqjbgOFqB_sq8/edit#gid=0', 'b3:e3')
-# create_sheet_subscription(57, 'https://docs.google.com/spreadsheets/d/1_qMPqgcJZEJaiXZpMbjKM0trw_aGkkulrZG7Lq7kjU8/edit#gid=403770193', 'Y13')
-# delete_sheet_subscription(3, 'https://docs.google.com/spreadsheets/d/1csPjqocpnvlFp8IcoQdfGnbqT9jlS_jqjbgOFqB_sq8/edit#gid=0', 'b3:e3')
-# print(get_sheet_subscriptions_by_user_id(1))
-# print(get_all_sheet_subscriptions())
+if __name__ == '__main__':
+    Base.metadata.create_all(engine)
+    migrate()
+    print('Database succesfully created')
