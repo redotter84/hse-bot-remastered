@@ -116,6 +116,22 @@ async def process_chat_command(message: types.Message, state):
     return await build_menu(message, subscription, 'chat')
 
 
+@dp.message_handler(lambda message: len(database.get_tg_subscriptions_by_chat(message.chat.id)))
+async def process_chat_message(message: types.Message):
+    should_notify = message_classifier.is_important(message.text)
+    if should_notify:
+        subscriptions = database.get_tg_subscriptions_by_chat(message.chat.id)
+        for sub in subscriptions:
+            await send_message(sub.user_id, f'В чат "{message.chat.title}" пришло новое сообщение:', disable_notification=sub.muted)
+            await send_message(sub.user_id, message.text, disable_notification=sub.muted)
+            if sub.muted:
+                await send_message(
+                    sub.user_id,
+                    "Внимание: у данного чата включен тихий режим, поэтому уведомление было беззвучное",
+                    disable_notification=sub.muted,
+                )
+
+
 # ------------------подписка на таблицы-------------------
 
 

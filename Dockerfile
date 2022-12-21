@@ -1,6 +1,7 @@
 FROM python:3.9
-COPY requirements.txt ./bot/
-RUN pip install -r ./bot/requirements.txt
-COPY . ./bot
-RUN python3 ./bot/database.py
-ENTRYPOINT python3 ./bot/bot.py
+WORKDIR ./bot
+COPY requirements.txt .
+RUN pip install -r ./requirements.txt
+COPY . .
+RUN python3 ./database.py
+ENTRYPOINT python3 ./bot.py
