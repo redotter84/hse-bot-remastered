@@ -4,4 +4,4 @@ services:
     build: .
     container_name: hse-bot
     environment:
-      - TG_BOT_TOKEN=${TG_BOT_TOKEN}
+      - HSE_BOT_TOKEN=${HSE_BOT_TOKEN}

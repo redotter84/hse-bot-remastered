@@ -1,2 +1,10 @@
-# hse-tg-bot
-Telegram bot for HSE students
+# Бот-Ассистент v.2
+
+Бот для помощи студентам ВШЭ
+
+
+# Как запустить
+
+1. Получаем токен для бота и кладём его в переменную среды `HSE_BOT_TOKEN`
+2. Запускаем с помощью команды `docker-compose up --build`
+3. Идём в бота [@UniOrgBot](https://t.me/UniOrgBot) и играемся
