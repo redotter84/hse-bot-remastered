@@ -102,6 +102,7 @@ async def read_range_and_title_from_sheet(link, target_range, troubleshoot_mode=
     # target_range = 'A1:B2'
 
     # Создаём creds
+    creds = None
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
     # If there are no (valid) credentials available, let the user log in.
