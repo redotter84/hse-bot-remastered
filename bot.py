@@ -1,26 +1,17 @@
-import database
-import request_fuctions
-from send_message_function import send_message
-import asyncio
-import logging
 import re
+
+from aiogram import types
+from aiogram.utils import executor
+
+import database
 import message_classifier
 from bot_config import dp
-from aiogram import Bot, types
-from aiogram.dispatcher import Dispatcher
-from aiogram.utils import executor, exceptions
-from config import TOKEN
+from send_message_function import send_message
 
 
 @dp.message_handler(commands=['start'])
 async def process_start_command(message: types.Message):
     await message.reply("Привет!\nЧтобы посмотреть доступные команды - отправь /help :) ")
-    # while True:
-    #     if request_functions.flag_changed:
-    #         await send_message(request_functions.userr_id, f'В таблице по подписке № {request_functions.sub_id} '
-    #                            f'произошло изменение!\nСтарые данные:'
-    #                            f'{request_functions.old_data}, \nНовые данные: {request_functions.neww_data}')
-    #         request_functions.flag_changed = False
 
 
 @dp.message_handler(commands=['help'])
@@ -90,12 +81,12 @@ async def process_forward_command(message: types.Message):
         for user in subscriptions:
             await send_message(user.user_id, message.text)
 
+
 # ------------------подписка на таблицы-------------------
 
 
 @dp.message_handler(commands=['sub_sheet'])
 async def process_subscription_sheet_command(message: types.Message):
-
     input_str = re.split(' ', message.text, maxsplit=3)
     try:
         input_url = input_str[1]
@@ -111,7 +102,6 @@ async def process_subscription_sheet_command(message: types.Message):
 
 @dp.message_handler(commands=['unsub_sheet'])
 async def process_subscription_sheet_command(message: types.Message):
-
     input_str = re.split(' ', message.text, maxsplit=3)
     try:
         input_url = input_str[1]
@@ -121,7 +111,7 @@ async def process_subscription_sheet_command(message: types.Message):
 
     # check if suitable
     database.delete_sheet_subscription(message.from_user.id, input_url, input_range)
-    await message.reply(f"Вы успешно подписались на обновления таблицы со следующей ячекой: {input_range}")
+    await message.reply(f"Вы успешно отписались от обновлений таблицы со следующей ячекой: {input_range}")
 
 
 @dp.message_handler(commands=['try'])
@@ -130,6 +120,6 @@ async def process_spam_command(message: types.Message):
 
 
 if __name__ == '__main__':
-    #request_functions.req_sheets_for_update(time_between_requests=5, requests_count=10, troubleshoot_in_read_func=False,
-    #                      troubleshoot_mode=False)
+    #request_fuctions.req_sheets_for_update(time_between_requests=5, requests_count=100, troubleshoot_in_read_func=False,
+    #                         troubleshoot_mode=True)
     executor.start_polling(dp)
