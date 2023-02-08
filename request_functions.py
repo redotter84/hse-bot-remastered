@@ -1,15 +1,37 @@
+import asyncio
+import os.path
 import time
+
 import googleapiclient
 import httplib2
-import apiclient
-import asyncio
-from oauth2client.service_account import ServiceAccountCredentials
+from google.auth.transport.requests import Request
+from google.oauth2.service_account import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
 from database import get_all_sheet_subscriptions
 from send_message_function import send_message
 
 
-async def req_sheets_for_update(time_between_requests=30, requests_count=10, troubleshoot_in_read_func=False,
-                          troubleshoot_mode=False):
+def make_sheets_service():
+    SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+    creds = Credentials.from_service_account_file('/var/service.json', scopes=SCOPES)
+    return build('sheets', 'v4', credentials=creds)
+
+
+_sheets_service = None
+def sheets_service():
+    global _sheets_service
+    if _sheets_service is None:
+        _sheets_service = make_sheets_service()
+    return _sheets_service
+
+
+async def req_sheets_for_update(time_between_requests=10, troubleshoot_in_read_func=False, troubleshoot_mode=False):
+    if not make_sheets_service():
+        raise RuntimeError('Sheets service was not created')
+
     # Создаём list, содержащий начальные данные всех диапазонов по ссылкам
     subscriptions_list = get_all_sheet_subscriptions()
     data = dict()
@@ -34,11 +56,13 @@ async def req_sheets_for_update(time_between_requests=30, requests_count=10, tro
     # Если они отличаются от хранимой нами версии - сообщаем об этом и перезаписываем данные
     if troubleshoot_mode:
         print('Время между обновлениями: ' + str(time_between_requests) + ' сек')
-        print('Общее количество запросов: ' + str(requests_count))
-    for req in range(requests_count):
+
+    req = 0
+    while True:
+        req += 1
         time.sleep(time_between_requests)
         if troubleshoot_mode:
-            print('Происходит запрос №' + str(req + 1) + '...')
+            print('Происходит запрос №' + str(req) + '...')
 
         new_new_data = dict()
         subscriptions_list = get_all_sheet_subscriptions()
@@ -75,10 +99,11 @@ async def req_sheets_for_update(time_between_requests=30, requests_count=10, tro
 
 
 async def read_range_and_title_from_sheet(link, target_range, troubleshoot_mode=False):
+    # Здесь определён метод аутентификации
     # Парсим ссылку на таблицу
     list_of_link = link.split('/')
     if len(list_of_link) != 7:
-        raise ValueError('Ссылка не соответсвует формату')
+        raise ValueError('Ссылка не соответствует формату')
     spreadsheet_id = list_of_link[5]
     if list_of_link[6] == 'edit':
         list_of_link[6] = 'edit#gid=0'
@@ -92,20 +117,10 @@ async def read_range_and_title_from_sheet(link, target_range, troubleshoot_mode=
     # Здесь можно вручную задать range в котором будут выведены данные
     # target_range = 'A1:B2'
 
-    # Название ключа
-    credentials_file = 'creds.json'
-
-    # Авторизация и получение объекта service (происходит магия, скопированная из открытых источников)
-    credentials = ServiceAccountCredentials.from_json_keyfile_name(
-        credentials_file,
-        ['https://www.googleapis.com/auth/spreadsheets',
-         'https://www.googleapis.com/auth/drive'])
-    http_auth = credentials.authorize(httplib2.Http())
-    service = apiclient.discovery.build('sheets', 'v4', http=http_auth, cache_discovery=False)
-
     # Находим название листа таблицы
+
     sheet_page = None
-    sheet_metadata = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+    sheet_metadata = sheets_service().spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
     if troubleshoot_mode:
         print('Список id листов в таблице:')
     for page in sheet_metadata['sheets']:
@@ -124,7 +139,7 @@ async def read_range_and_title_from_sheet(link, target_range, troubleshoot_mode=
     if troubleshoot_mode:
         print('range = ' + target_range)
     try:
-        req_answer = service.spreadsheets().values().get(
+        req_answer = sheets_service().spreadsheets().values().get(
             spreadsheetId=spreadsheet_id,
             range=page_title + '!' + target_range,
             majorDimension='ROWS'
@@ -132,17 +147,9 @@ async def read_range_and_title_from_sheet(link, target_range, troubleshoot_mode=
         if 'values' not in req_answer.keys():
             req_answer['values'] = [['']]
         return req_answer['values'], sheet_title
-    except googleapiclient.errors.HttpError:
+    except HttpError:
         raise ValueError('Неверный формат диапазона range')
 
 
 if __name__ == "__main__":
-    asyncio.run(req_sheets_for_update(requests_count=1000, troubleshoot_in_read_func=True, troubleshoot_mode=True))
-
-# Базовый тест:
-# links_arr = ['https://docs.google.com/spreadsheets/d/1_qMPqgcJZEJaiXZpMbjKM0trw_aGkkulrZG7Lq7kjU8/edit#gid=403770193',
-#              'https://docs.google.com/spreadsheets/d/1csPjqocpnvlFp8IcoQdfGnbqT9jlS_jqjbgOFqB_sq8/edit#gid=0']
-# ranges_arr = ['Y13', 'b3:e3']
-# req_sheets_for_update(links_arr, ranges_arr, 15, 10, troubleshoot_in_read_func=False, troubleshoot_mode=True)
-
-#req_sheets_for_update(20, 10, troubleshoot_in_read_func=False, troubleshoot_mode=True)
+    asyncio.run(req_sheets_for_update(troubleshoot_in_read_func=False, troubleshoot_mode=False))

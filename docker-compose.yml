@@ -4,4 +4,7 @@ services:
     build: .
     container_name: hse-bot
     environment:
-      - HSE_BOT_TOKEN=${HSE_BOT_TOKEN}
+      - HSE_BOT_TG_TOKEN=${HSE_BOT_TG_TOKEN}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ${HSE_BOT_GOOGLE_SERVICE_ACCOUNT}:/var/service.json

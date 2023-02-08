@@ -1,28 +1,23 @@
 import asyncio
 import base64
-import database
 import logging
-import message_classifier
 import re
-import request_fuctions
 
 from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import executor, exceptions
+
 from bot_config import dp
 from send_message_function import send_message
+
+import database
+import message_classifier
 
 
 @dp.message_handler(commands=['start'])
 async def process_start_command(message: types.Message):
     await message.reply("Привет!\nЧтобы посмотреть доступные команды - отправь /help :) ")
-    # while True:
-    #     if request_functions.flag_changed:
-    #         await send_message(request_functions.userr_id, f'В таблице по подписке № {request_functions.sub_id} '
-    #                            f'произошло изменение!\nСтарые данные:'
-    #                            f'{request_functions.old_data}, \nНовые данные: {request_functions.neww_data}')
-    #         request_functions.flag_changed = False
 
 
 @dp.message_handler(commands=['help'])
@@ -186,6 +181,4 @@ async def process_sheet_command(message: types.Message, state):
 
 
 if __name__ == '__main__':
-    #request_functions.req_sheets_for_update(time_between_requests=5, requests_count=10, troubleshoot_in_read_func=False,
-    #                      troubleshoot_mode=False)
     executor.start_polling(dp)
