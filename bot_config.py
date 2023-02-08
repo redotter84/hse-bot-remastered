@@ -1,11 +1,20 @@
 import logging
-from aiogram import Bot
-from aiogram.dispatcher import Dispatcher
-from config import TOKEN
+import os
 
+from aiogram import Bot
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher import Dispatcher
+
+token_var = 'HSE_BOT_TOKEN'
+TOKEN = os.environ.get(token_var)
+if TOKEN is None:
+    print('\033[31;1m', end='')
+    print(f'You need to specify {token_var} environment variable')
+    print('\033[0m', end='')
+    exit(1)
 
 bot = Bot(token=TOKEN)
-dp = Dispatcher(bot)
+dp = Dispatcher(bot, storage=MemoryStorage())
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger('broadcast')
