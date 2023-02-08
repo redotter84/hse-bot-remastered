@@ -127,7 +127,6 @@ async def process_chat_message(message: types.Message):
                 )
 
 
-
 # ------------------подписка на таблицы-------------------
 
 
@@ -162,6 +161,7 @@ async def process_unmute_sheet(call, state):
     sheet_link, sheet_range = await get_sheet_data(state)
     database.toggle_mute_for_sheet_subscription(call.from_user.id, sheet_link, sheet_range)
     await call.message.edit_text(f"Выключен тихий режим для чата ячеек {sheet_range} таблицы {sheet_link}")
+
 
 @dp.message_handler(commands=['sheet'])
 async def process_sheet_command(message: types.Message, state):
