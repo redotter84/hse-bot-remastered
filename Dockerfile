@@ -4,4 +4,4 @@ COPY requirements.txt .
 RUN pip install -r ./requirements.txt
 COPY . .
 RUN python3 ./database.py
-ENTRYPOINT python3 ./bot.py
+ENTRYPOINT ./run.sh

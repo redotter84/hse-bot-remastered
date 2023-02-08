@@ -5,7 +5,7 @@ from aiogram import Bot
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import Dispatcher
 
-token_var = 'HSE_BOT_TOKEN'
+token_var = 'HSE_BOT_TG_TOKEN'
 TOKEN = os.environ.get(token_var)
 if TOKEN is None:
     print('\033[31;1m', end='')

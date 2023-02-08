@@ -7,12 +7,12 @@ from aiogram import Bot, types
 from aiogram.dispatcher import Dispatcher
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils import executor, exceptions
+
 from bot_config import dp
 from send_message_function import send_message
 
 import database
 import message_classifier
-import request_fuctions
 
 
 @dp.message_handler(commands=['start'])
@@ -181,6 +181,4 @@ async def process_sheet_command(message: types.Message, state):
 
 
 if __name__ == '__main__':
-    #request_fuctions.req_sheets_for_update(time_between_requests=5, requests_count=100, troubleshoot_in_read_func=False,
-    #                         troubleshoot_mode=True)
     executor.start_polling(dp)
