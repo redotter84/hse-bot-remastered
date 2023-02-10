@@ -24,7 +24,7 @@ async def process_start_command(message: types.Message):
 async def process_help_command(message: types.Message):
     await message.reply("В этом боте на данный момент ты можешь выполнить следующие команды:\n"
                         "/info - показать количество отслеживаемых чатов и таблиц\n"
-                        "/id - получить ID чата и пользователя\n"
+                        "/get_id - получить ID чата и пользователя\n"
                         "/chat CHAT_ID - настроить подписку на чат с указанным ID\n"
                         "/sheet URL RANGE - настроить подписку на ячейки таблицы по ссылке\n")
 
@@ -96,8 +96,10 @@ async def process_unmute_chat(call, state):
 
 @dp.message_handler(commands=['chat'])
 async def process_chat_command(message: types.Message, state):
-    await message.reply(f"Узнать ID чата можно написав в нужной беседе команду /get_id ;)\n"
+    if ' ' not in message.text:
+        await message.reply(f"Узнать ID чата можно, написав в нужной беседе команду /get_id ;)\n"
                         f"Или воспользуйтесь командой /help, чтобы увидеть все доступные команды.")
+        return
 
     chat_id = re.split(' ', message.text, maxsplit=3)
     try:

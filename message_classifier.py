@@ -1,17 +1,28 @@
-def check_whitelist(whitelist_path: str, msg: str) -> bool:
-    msg = msg.lower()
+import os
+
+
+def check_whitelist(whitelist_path: str, original: str) -> bool:
+    msg = ''
+    for c in original.lower():
+        if c.isalpha() or c == '-':
+            msg += c
+        else:
+            msg += ' '
+    text = msg.split()
     with open(whitelist_path) as whitelist:
         for line in whitelist:
             word = line.strip()
-            if word in msg:
+            if word in text:
                 return True
     return False
 
 
 def is_important(msg: str) -> bool:
-    whitelists = ['whitelists/urls.txt', 'whitelists/hw.txt', 'whitelists/test.txt', 'whitelists/important.txt']
-    for wl in whitelists:
-        if check_whitelist(wl, msg):
-            return True
+    prefix = 'whitelists/'
+    for wl in os.listdir(prefix):
+        try:
+            if check_whitelist(prefix + wl, msg):
+                return True
+        except Exception as e:
+            print(f'Error: {e}')
     return False
-
