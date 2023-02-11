@@ -87,7 +87,15 @@ async def req_sheets_for_update(time_between_requests=10, troubleshoot_in_read_f
                 if new_data != data[el.id]:
                     await send_message(el.user_id, f'В таблице "{str(sheet_title)}" по подписке № {str(el.id)} '
                                        f'произошло изменение!\nСтарые данные: '
-                                       f'{data[el.id]}, \nНовые данные: {new_data}')
+                                       f'{data[el.id]}, \nНовые данные: {new_data}',
+                                       disable_notification=el.muted)
+                    if el.muted:
+                        await send_message(
+                            el.user_id,
+                            "Внимание: у данной таблицы включен тихий режим, поэтому уведомление было беззвучное",
+                            disable_notification=el.muted,
+                        )
+
                     data[el.id] = new_data
                 elif troubleshoot_mode:
                     print('В таблице №' + str(el.id) + ' изменений нет')
